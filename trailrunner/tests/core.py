@@ -31,7 +31,7 @@ class CoreTest(TestCase):
     maxDiff = None
 
     def setUp(self) -> None:
-        core.set_executor(core.thread_executor)
+        self.trailrunner = trailrunner.TrailRunner(core.thread_executor)
         self.temp_dir = TemporaryDirectory()
         self.td = Path(self.temp_dir.name).resolve()
 
@@ -90,29 +90,29 @@ class CoreTest(TestCase):
         (self.td / "frob" / "berry.py").write_text("\n")
 
         with self.subTest("root"):
-            result = core.project_root(self.td)
+            result = self.trailrunner.project_root(self.td)
             self.assertEqual(self.td, result)
 
         with self.subTest("root file"):
-            result = core.project_root(self.td / "foo.py")
+            result = self.trailrunner.project_root(self.td / "foo.py")
             self.assertEqual(self.td, result)
 
         with self.subTest("subdir"):
-            result = core.project_root(self.td / "frob")
+            result = self.trailrunner.project_root(self.td / "frob")
             self.assertEqual(self.td, result)
 
         with self.subTest("subdir file"):
-            result = core.project_root(self.td / "frob/berry.py")
+            result = self.trailrunner.project_root(self.td / "frob/berry.py")
             self.assertEqual(self.td, result)
 
         with self.subTest("local root"):
             with cd(self.td):
-                result = core.project_root(Path("frob"))
+                result = self.trailrunner.project_root(Path("frob"))
                 self.assertEqual(self.td, result)
 
         with self.subTest("local subdir"):
             with cd(self.td / "frob"):
-                result = core.project_root(Path("berry.py"))
+                result = self.trailrunner.project_root(Path("berry.py"))
                 self.assertEqual(self.td, result)
 
     def test_project_root_multilevel(self) -> None:
@@ -124,24 +124,24 @@ class CoreTest(TestCase):
         (inner / "fuzz" / "ball.py").write_text("\n")
 
         with self.subTest("root"):
-            result = core.project_root(self.td)
+            result = self.trailrunner.project_root(self.td)
             self.assertEqual(self.td, result)
 
         with self.subTest("subdir"):
-            result = core.project_root(self.td / "foo")
+            result = self.trailrunner.project_root(self.td / "foo")
             self.assertEqual(self.td, result)
 
         with self.subTest("inner root"):
-            result = core.project_root(inner)
+            result = self.trailrunner.project_root(inner)
             self.assertEqual(inner, result)
 
         with self.subTest("inner file"):
-            result = core.project_root(inner / "fuzz" / "ball.py")
+            result = self.trailrunner.project_root(inner / "fuzz" / "ball.py")
             self.assertEqual(inner, result)
 
     def test_gitignore(self) -> None:
         with self.subTest("no .gitignore"):
-            result = core.gitignore(self.td)
+            result = self.trailrunner.gitignore(self.td)
             self.assertIsInstance(result, PathSpec)
             self.assertListEqual([], result.patterns)
 
@@ -149,12 +149,12 @@ class CoreTest(TestCase):
 
         with self.subTest("path is file"):
             with self.assertRaisesRegex(ValueError, "path .+ not a directory"):
-                core.gitignore(self.td / "foo.py")
+                self.trailrunner.gitignore(self.td / "foo.py")
 
         (self.td / ".gitignore").write_text("foo/\n*.c\n")
 
         with self.subTest("valid file"):
-            result = core.gitignore(self.td)
+            result = self.trailrunner.gitignore(self.td)
             self.assertIsInstance(result, PathSpec)
             self.assertTrue(result.patterns)
             for pattern in result.patterns:
@@ -178,7 +178,7 @@ class CoreTest(TestCase):
         (self.td / "vendor" / "useful" / "old.py").write_text("\n")
 
         with self.subTest("absolute root no gitignore"):
-            result = sorted(core.walk(self.td))
+            result = sorted(self.trailrunner.walk(self.td))
             expected = [
                 self.td / "foo" / "a.py",
                 self.td / "foo" / "bar" / "b.py",
@@ -189,7 +189,7 @@ class CoreTest(TestCase):
             self.assertListEqual(expected, result)
 
         with self.subTest("absolute subdir no gitignore"):
-            result = sorted(core.walk(self.td / "foo"))
+            result = sorted(self.trailrunner.walk(self.td / "foo"))
             expected = [
                 self.td / "foo" / "a.py",
                 self.td / "foo" / "bar" / "b.py",
@@ -199,7 +199,7 @@ class CoreTest(TestCase):
 
         with self.subTest("local root no gitignore"):
             with cd(self.td):
-                result = sorted(core.walk(Path(".")))
+                result = sorted(self.trailrunner.walk(Path(".")))
                 expected = [
                     Path("foo") / "a.py",
                     Path("foo") / "bar" / "b.py",
@@ -211,7 +211,7 @@ class CoreTest(TestCase):
 
         with self.subTest("local subdir no gitignore"):
             with cd(self.td):
-                result = sorted(core.walk(Path("foo")))
+                result = sorted(self.trailrunner.walk(Path("foo")))
                 expected = [
                     Path("foo") / "a.py",
                     Path("foo") / "bar" / "b.py",
@@ -222,7 +222,7 @@ class CoreTest(TestCase):
         (self.td / ".gitignore").write_text("vendor/\n*.pyi")
 
         with self.subTest("absolute root with gitignore"):
-            result = sorted(core.walk(self.td))
+            result = sorted(self.trailrunner.walk(self.td))
             expected = [
                 self.td / "foo" / "a.py",
                 self.td / "foo" / "bar" / "b.py",
@@ -231,7 +231,7 @@ class CoreTest(TestCase):
             self.assertListEqual(expected, result)
 
         with self.subTest("absolute subdir with gitignore"):
-            result = sorted(core.walk(self.td / "foo"))
+            result = sorted(self.trailrunner.walk(self.td / "foo"))
             expected = [
                 self.td / "foo" / "a.py",
                 self.td / "foo" / "bar" / "b.py",
@@ -240,7 +240,7 @@ class CoreTest(TestCase):
 
         with self.subTest("local root with gitignore"):
             with cd(self.td):
-                result = sorted(core.walk(Path(".")))
+                result = sorted(self.trailrunner.walk(Path(".")))
                 expected = [
                     Path("foo") / "a.py",
                     Path("foo") / "bar" / "b.py",
@@ -250,7 +250,7 @@ class CoreTest(TestCase):
 
         with self.subTest("local subdir with gitignore"):
             with cd(self.td):
-                result = sorted(core.walk(Path("foo")))
+                result = sorted(self.trailrunner.walk(Path("foo")))
                 expected = [
                     Path("foo") / "a.py",
                     Path("foo") / "bar" / "b.py",
@@ -259,7 +259,7 @@ class CoreTest(TestCase):
 
         with self.subTest("inner project snubs gitignore"):
             with cd(inner):
-                result = sorted(core.walk(Path(".")))
+                result = sorted(self.trailrunner.walk(Path(".")))
                 expected = [
                     Path("fuzz") / "ball.py",
                 ]
@@ -275,7 +275,7 @@ class CoreTest(TestCase):
             Path("/frob/glob.pyi"),
         ]
         expected = {p: p.as_posix() for p in paths}
-        result = core.run(paths, get_posix)
+        result = self.trailrunner.run(paths, get_posix)
         self.assertDictEqual(expected, result)
 
     def test_walk_then_run(self) -> None:
@@ -295,7 +295,9 @@ class CoreTest(TestCase):
 
         with self.subTest("local root no gitignore"):
             with cd(self.td):
-                result = sorted(core.walk_and_run([Path(".")], say_hello).keys())
+                result = sorted(
+                    self.trailrunner.walk_and_run([Path(".")], say_hello).keys()
+                )
                 expected = [
                     Path("foo") / "bar.py",
                     Path("foo") / "car.py",
@@ -308,7 +310,9 @@ class CoreTest(TestCase):
 
         with self.subTest("local subdir no gitignore"):
             with cd(self.td):
-                result = sorted(core.walk_and_run([Path("foo")], say_hello).keys())
+                result = sorted(
+                    self.trailrunner.walk_and_run([Path("foo")], say_hello).keys()
+                )
                 expected = [
                     Path("foo") / "bar.py",
                     Path("foo") / "car.py",
@@ -321,7 +325,9 @@ class CoreTest(TestCase):
 
         with self.subTest("local root with gitignore"):
             with cd(self.td):
-                result = sorted(core.walk_and_run([Path(".")], say_hello).keys())
+                result = sorted(
+                    self.trailrunner.walk_and_run([Path(".")], say_hello).keys()
+                )
                 expected = [
                     Path("foo") / "bar.py",
                     Path("foo") / "car.py",
@@ -331,7 +337,9 @@ class CoreTest(TestCase):
 
         with self.subTest("local subdir with gitignore"):
             with cd(self.td):
-                result = sorted(core.walk_and_run([Path("foo")], say_hello).keys())
+                result = sorted(
+                    self.trailrunner.walk_and_run([Path("foo")], say_hello).keys()
+                )
                 expected = [
                     Path("foo") / "bar.py",
                     Path("foo") / "car.py",

@@ -15,8 +15,7 @@ from .core import (
     run,
     walk,
     walk_and_run,
-    set_context,
-    set_executor,
     default_executor,
     thread_executor,
+    TrailRunner,
 )
